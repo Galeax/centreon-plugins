@@ -70,6 +70,7 @@ sub ping {
         port        => $self->{option_results}->{port},
         url_path    => '/api/v3/ping',
         credentials => 1,
+        insecure    => $self->{option_results}->{insecure},
         username    => $self->{option_results}->{api_username},
         password    => $self->{option_results}->{api_password},
         header      => [
@@ -115,6 +116,7 @@ sub get_assets {
             port        => $self->{option_results}->{port},
             url_path    => '/api/v3/servers?page=' . $page,
             credentials => 1,
+            insecure    => $self->{option_results}->{insecure},
             username    => $self->{option_results}->{api_username},
             password    => $self->{option_results}->{api_password},
             header      => [
@@ -186,6 +188,7 @@ sub get_asset_security_info {
         port        => $self->{option_results}->{port},
         url_path    => $url_path,
         credentials => 1,
+        insecure    => $self->{option_results}->{insecure},
         username    => $self->{option_results}->{api_username},
         password    => $self->{option_results}->{api_password},
         header      => [
@@ -231,6 +234,7 @@ sub get_assets_communication_failed {
             port        => $self->{option_results}->{port},
             url_path    => '/api/v3/servers?communication_failed=true&page=' . $page,
             credentials => 1,
+            insecure    => $self->{option_results}->{insecure},
             username    => $self->{option_results}->{api_username},
             password    => $self->{option_results}->{api_password},
             header      => [
