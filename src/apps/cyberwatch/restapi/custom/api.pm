@@ -73,6 +73,7 @@ sub ping {
         insecure    => $self->{option_results}->{insecure},
         username    => $self->{option_results}->{api_username},
         password    => $self->{option_results}->{api_password},
+        timeout     => $self->{option_results}->{timeout},    
         header      => [
             'Content-Type: application/json',
             'Accept: application/json',
@@ -118,6 +119,7 @@ sub get_assets {
             credentials => 1,
             insecure    => $self->{option_results}->{insecure},
             username    => $self->{option_results}->{api_username},
+            timeout     => $self->{option_results}->{timeout},    
             password    => $self->{option_results}->{api_password},
             header      => [
                 'Content-Type: application/json',
@@ -169,56 +171,6 @@ sub get_assets {
     return \@all_assets;
 }
 
-sub get_asset_security_info {
-    my ($self, %options) = @_;
-    
-    # The asset_id is mandatory
-    my $asset_id = $options{asset_id};
-    if (!defined($asset_id)) {
-        $self->{output}->add_option_msg(short_msg => "Missing 'asset_id' in get_asset_security_info.");
-        $self->{output}->option_exit();
-    }
-
-    my $url_path = '/api/v3/vulnerabilities/servers/' . $asset_id . '';
-
-    my $content = $self->{http}->request(
-        method      => 'GET',
-        proto       => 'https',
-        hostname    => $self->{option_results}->{hostname},
-        port        => $self->{option_results}->{port},
-        url_path    => $url_path,
-        credentials => 1,
-        insecure    => $self->{option_results}->{insecure},
-        username    => $self->{option_results}->{api_username},
-        password    => $self->{option_results}->{api_password},
-        header      => [
-            'Content-Type: application/json',
-            'Accept: application/json',
-        ],
-    );
-
-    if ($self->{http}->get_code() != 200) {
-        $self->{output}->add_option_msg(
-            short_msg => "HTTP error getting security info for asset $asset_id: "
-                         . $self->{http}->get_code() . " - "
-                         . $self->{http}->get_message()
-        );
-        $self->{output}->option_exit();
-    }
-
-    my $decoded;
-    eval {
-        require JSON;
-        $decoded = JSON->new->utf8->decode($content);
-    };
-    if ($@) {
-        $self->{output}->add_option_msg(short_msg => "Cannot decode JSON security info for asset $asset_id: $@");
-        $self->{output}->option_exit();
-    }
-
-    return $decoded;  
-}
-
 sub get_assets_communication_failed {
     my ($self, %options) = @_;
 
@@ -235,6 +187,7 @@ sub get_assets_communication_failed {
             url_path    => '/api/v3/servers?communication_failed=true&page=' . $page,
             credentials => 1,
             insecure    => $self->{option_results}->{insecure},
+            timeout     => $self->{option_results}->{timeout},    
             username    => $self->{option_results}->{api_username},
             password    => $self->{option_results}->{api_password},
             header      => [
@@ -285,6 +238,112 @@ sub get_assets_communication_failed {
     return scalar(@all_assets);
 }
 
+sub get_os_obselete_id {
+    my ($self, %options) = @_;
+
+    my $content = $self->{http}->request(
+        method      => 'GET',
+        proto       => 'https',
+        hostname    => $self->{option_results}->{hostname},
+        port        => $self->{option_results}->{port},
+        url_path    => '/api/v3/security_issues?sid=Obsolete-Os',
+        credentials => 1,
+        insecure    => $self->{option_results}->{insecure},
+        username    => $self->{option_results}->{api_username},
+        timeout     => $self->{option_results}->{timeout},    
+        password    => $self->{option_results}->{api_password},
+        header      => [
+            'Content-Type: application/json',
+            'Accept: application/json',
+        ],
+    );
+
+    if ($self->{http}->get_code() != 200) {
+        $self->{output}->add_option_msg(
+            short_msg => "HTTP error: " . $self->{http}->get_code()
+                         . " - " . $self->{http}->get_message()
+        );
+        $self->{output}->option_exit();
+    }
+
+    my $decoded;
+    eval {
+        require JSON;
+        $decoded = JSON->new->utf8->decode($content);
+    };
+    if ($@) {
+        $self->{output}->add_option_msg(short_msg => "Cannot decode JSON response: $@");
+        $self->{output}->option_exit();
+    }
+
+    return $decoded;
+}
+
+sub get_obselete_os_count {
+    my ($self, %options) = @_;
+
+    my $issue_id;
+    if (defined($options{id})) {
+        $issue_id = $options{id};
+    } else {
+        my $issues = $self->get_os_obselete_id();
+        if (ref($issues) ne 'ARRAY' || scalar(@$issues) == 0) {
+            $self->{output}->add_option_msg(short_msg => "No Obsolete OS issue found");
+            $self->{output}->option_exit();
+        }
+        $issue_id = $issues->[0]->{id};
+    }
+
+    my $content = $self->{http}->request(
+        method      => 'GET',
+        proto       => 'https',
+        hostname    => $self->{option_results}->{hostname},
+        port        => $self->{option_results}->{port},
+        url_path    => '/api/v3/security_issues/' . $issue_id,
+        credentials => 1,
+        insecure    => $self->{option_results}->{insecure},
+        timeout     => $self->{option_results}->{timeout},
+        username    => $self->{option_results}->{api_username},
+        password    => $self->{option_results}->{api_password},
+        header      => [
+            'Content-Type: application/json',
+            'Accept: application/json',
+        ],
+    );
+    
+    if ($self->{http}->get_code() != 200) {
+        $self->{output}->add_option_msg(
+            short_msg => "HTTP error: " . $self->{http}->get_code()
+                         . " - " . $self->{http}->get_message()
+        );
+        $self->{output}->option_exit();
+    }
+    
+    my $decoded;
+    eval {
+        require JSON;
+        $decoded = JSON->new->utf8->decode($content);
+    };
+    if ($@) {
+        $self->{output}->add_option_msg(short_msg => "Cannot decode JSON response: $@");
+        $self->{output}->option_exit();
+    }
+    
+    # Count unique active servers
+    my $count = 0;
+    my %seen;
+    if (defined($decoded->{servers}) && ref($decoded->{servers}) eq 'ARRAY') {
+        foreach my $server (@{$decoded->{servers}}) {
+            # Only count if the server is 'active' and hasn't been counted yet
+            if (defined($server->{id}) && $server->{status} eq 'active' && !exists $seen{$server->{id}}) {
+                $seen{$server->{id}} = 1;
+                $count++;
+            }
+        }
+    }
+    
+    return $count;
+}
 
 1;
 
@@ -314,7 +373,16 @@ Calls C</api/v3/vulnerabilities/servers/{asset_id}> to retrieve asset security d
 
 =head2 get_assets_lost_communication()
 
-Calls C</api/v3/servers?communication_failed=true> to retrieve numbers of assets that lost the connexion.
+Calls C</api/v3/servers?communication_failed=true> to retrieve the number of assets that lost connection.
 
+=head2 get_os_obselete_id()
+
+Calls C</api/v3/security_issues?sid=Obsolete-Os> to retrieve details about the Obsolete Operating System security issue.
+
+=head2 get_obselete_os_count()
+
+Counts the number of servers affected by the Obsolete Operating System security issue.
+If an issue id is not provided via the C<id> parameter, the function will internally call C<get_os_obselete_id()> to retrieve the issue id,
+and then call C</api/v3/security_issues/{id}> to obtain the detailed information.
 
 =cut
